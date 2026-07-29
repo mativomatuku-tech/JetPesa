@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>JetPesa - Fly High, Win Big</title>
+  <style>
+    body {
+      background-color: #0e0e10;
+      color: #ffffff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .main-wrapper { display: flex; gap: 20px; max-width: 980px; width: 100%; }
+
+    .players-sidebar {
+      width: 260px; background-color: #18181c; border-radius: 14px;
+      border: 1px solid #26262e; padding: 15px; display: flex; flex-direction: column; gap: 10px; height: 550px;
+    }
+
+    .sidebar-title {
+      font-size: 0.85rem; font-weight: bold; color: #a0a0a0; text-transform: uppercase;
+      letter-spacing: 1px; border-bottom: 1px solid #26262e; padding-bottom: 8px;
+    }
+
+    .players-list { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
+    .player-row { display: flex; justify-content: space-between; align-items: center; background: #121215; padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; }
+    .player-row.won { border-left: 3px solid #00e676; background: #11281a; }
+    .player-row.lost { border-left: 3px solid #ff3355; background: #281116; }
+
+    .game-container { flex: 1; display: flex; flex-direction: column; gap: 15px; }
+    .card { background-color: #18181c; padding: 18px; border-radius: 14px; border: 1px solid #26262e; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
+
+    .header-box { display: flex; justify-content: space-between; align-items: center; }
+    .user-info-btn { background: #222228; border: 1px solid #333; padding: 8px 14px; border-radius: 8px; cursor: pointer; display: flex; flex-direction: column; align-items: flex-start; }
+    .user-info-btn:hover { background: #2c2c34; }
+    .user-name { font-weight: bold; color: #e0e0e0; font-size: 0.95rem; }
+    .user-phone { font-size: 0.75rem; color: #888; }
+    .balance-amount { font-weight: bold; color: #00e676; font-size: 1.25rem; }
+
+    .canvas-container {
+      position: relative; width: 100%; height: 250px; background-color: #121215;
+      border-radius: 12px; overflow: hidden; border: 1px solid #26262e;
+    }
+
+    canvas { width: 100%; height: 100%; display: block; }
+
+    .multiplier-overlay {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      font-size: 3.5rem; font-weight: 800; color: #ffffff; text-shadow: 0 0 20px rgba(0,0,0,0.8);
+    }
+    .crashed-text { color: #ff3355 !important; }
+    .status-overlay { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); font-size: 0.85rem; color: #a0a0a0; }
+
+    .betting-panel { display: flex; flex-direction: column; gap: 12px; }
+    .row { display: flex; gap: 10px; }
+    .input-group { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+    .input-group label { font-size: 0.8rem; color: #a0a0a0; }
+    .input-group input { background-color: #0e0e10; border: 1px solid #333; color: #fff; padding: 10px; border-radius: 8px; font-size: 0.95rem; outline: none; }
+
+    .btn { padding: 12px; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: 0.2s ease; }
+    .btn-primary { background-color: #29b6f6; color: #000; }
+    .btn-deposit { background-color: #00e676; color: #000; font-size: 0.85rem; padding: 8px 12px; }
+    
+    /* Dynamic Action Buttons */
+    .btn-bet { background-color: #e51c44; color: white; padding: 14px; }
+    .btn-cashout { background-color: #ffb300 !important; color: #000 !important; padding: 14px; font-size: 1.1rem; font-weight: 800; animation: pulse 1s infinite alternate; }
+    
+    @keyframes pulse {
+      0% { transform: scale(1); box-shadow: 0 0 10px rgba(255, 179, 0, 0.4); }
+      100% { transform: scale(1.02); box-shadow: 0 0 25px rgba(255, 179, 0, 0.8); }
+    }
+
+    .btn:disabled { background-color: #333 !important; color: #777 !important; cursor: not-allowed; animation: none !important; }
+
+    /* Yellow Alert Popup Banner */
+    .cashout-popup {
+      background: #ffb300;
+      color: #000;
+      padding: 10px 15px;
+      border-radius: 8px;
+      font-weight: 800;
+      text-align: center;
+      font-size: 1.05rem;
+      box-shadow: 0 0 20px rgba(255, 179, 0, 0.6);
+      margin-bottom: 10px;
+    }
+
+    .message { font-size: 0.9rem; text-align: center; min-height: 20px; font-weight: bold; }
+    .win { color: #00e676; }
+    .loss { color: #ff3355; }
+    .hidden { display: none !important; }
+
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 1000;
+    }
+    .modal { background: #18181c; padding: 25px; border-radius: 14px; border: 1px solid #333; width: 340px; display: flex; flex-direction: column; gap: 12px; }
+  </style>
+</head>
+<body>
+
+  <!-- REGISTER / LOGIN SCREEN -->
+  <div id="authCard" class="card" style="width: 360px; display: flex; flex-direction: column; gap: 12px;">
+    <h2 style="margin:0; text-align:center; color:#29b6f6;">Welcome to JetPesa</h2>
+    
+    <div class="row">
+      <div class="input-group">
+        <label>First Name</label>
+        <input type="text" id="firstNameInput" placeholder="John">
+      </div>
+      <div class="input-group">
+        <label>Last Name</label>
+        <input type="text" id="lastNameInput" placeholder="Doe">
+      </div>
+    </div>
+
+    <div class="input-group">
+      <label>Mobile Number (M-Pesa)</label>
+      <input type="tel" id="phoneInput" placeholder="0712345678">
+    </div>
+
+    <div class="input-group">
+      <label>Password</label>
+      <input type="password" id="passwordInput" placeholder="••••••••">
+    </div>
+
+    <button id="loginBtn" class="btn btn-primary" style="margin-top: 5px;">REGISTER & PLAY</button>
+  </div>
+
+  <!-- MAIN GAME SCREEN -->
+  <div id="gameWrapper" class="main-wrapper hidden">
+
+    <div class="players-sidebar">
+      <div class="sidebar-title">Live Bets</div>
+      <div id="playersList" class="players-list"></div>
+    </div>
+
+    <div class="game-container">
+      <div class="card header-box">
+        <button id="openProfileBtn" class="user-info-btn">
+          <span id="userDisplayName" class="user-name">John Doe</span>
+          <span id="userDisplayPhone" class="user-phone">0712345678</span>
+        </button>
+
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div id="balanceDisplay" class="balance-amount">KES 500.00</div>
+          <button id="openDepositBtn" class="btn btn-deposit">+ DEPOSIT</button>
+        </div>
+      </div>
+
+      <div class="canvas-container">
+        <div id="status" class="status-overlay">Waiting for next round...</div>
+        <div id="multiplier" class="multiplier-overlay">1.00x</div>
+        <canvas id="flightCanvas"></canvas>
+      </div>
+
+      <!-- Pop-up Banner for Win Notifications -->
+      <div id="cashoutPopup" class="cashout-popup hidden"></div>
+      <div id="message" class="message"></div>
+
+      <div class="card betting-panel">
+        <div class="row">
+          <div class="input-group">
+            <label for="betAmount">Bet Amount (KES)</label>
+            <input type="number" id="betAmount" value="50" min="10" step="10">
+          </div>
+        </div>
+
+        <button id="actionBtn" class="btn btn-bet">PLACE BET</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- PROFILE & SETTINGS MODAL -->
+  <div id="profileModal" class="modal-overlay hidden">
+    <div class="modal">
+      <h3 style="margin:0; text-align:center; color: #29b6f6;">Account Settings</h3>
+      <div class="row">
+        <div class="input-group">
+          <label>First Name</label>
+          <input type="text" id="editFirstName">
+        </div>
+        <div class="input-group">
+          <label>Last Name</label>
+          <input type="text" id="editLastName">
+        </div>
+      </div>
+      <div class="input-group">
+        <label>Change Password</label>
+        <input type="password" id="editPassword" placeholder="Enter new password">
+      </div>
+      <button id="saveProfileBtn" class="btn btn-primary">SAVE CHANGES</button>
+      <button id="closeProfileBtn" class="btn" style="background:#333; color:#fff;">CLOSE</button>
+    </div>
+  </div>
+
+  <!-- M-PESA DEPOSIT MODAL -->
+  <div id="depositModal" class="modal-overlay hidden">
+    <div class="modal">
+      <h3 style="margin:0; text-align:center; color: #00e676;">M-Pesa STK Deposit</h3>
+      <div class="input-group">
+        <label>M-Pesa Phone Number</label>
+        <input type="tel" id="mpesaPhone" placeholder="0712345678">
+      </div>
+      <div class="input-group">
+        <label>Deposit Amount (KES)</label>
+        <input type="number" id="depositAmount" value="100" min="10">
+      </div>
+      <button id="stkPushBtn" class="btn btn-deposit" style="padding: 12px; font-weight: bold;">SEND STK PUSH</button>
+      <button id="closeDepositBtn" class="btn" style="background:#333; color:#fff;">CANCEL</button>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    // DOM Elements
+    const authCard = document.getElementById('authCard');
+    const gameWrapper = document.getElementById('gameWrapper');
+    const firstNameInput = document.getElementById('firstNameInput');
+    const lastNameInput = document.getElementById('lastNameInput');
+    const phoneInput = document.getElementById('phoneInput');
+    const passwordInput = document.getElementById('passwordInput');
+    const loginBtn = document.getElementById('loginBtn');
+    
+    const userDisplayName = document.getElementById('userDisplayName');
+    const userDisplayPhone = document.getElementById('userDisplayPhone');
+    const balanceDisplay = document.getElementById('balanceDisplay');
+    const multiplierEl = document.getElementById('multiplier');
+    const statusEl = document.getElementById('status');
+    const messageEl = document.getElementById('message');
+    const cashoutPopup = document.getElementById('cashoutPopup');
+    const betAmountInput = document.getElementById('betAmount');
+    const actionBtn = document.getElementById('actionBtn');
+    const playersList = document.getElementById('playersList');
+
+    // Profile Modal Elements
+    const profileModal = document.getElementById('profileModal');
+    const openProfileBtn = document.getElementById('openProfileBtn');
+    const closeProfileBtn = document.getElementById('closeProfileBtn');
+    const saveProfileBtn = document.getElementById('saveProfileBtn');
+    const editFirstName = document.getElementById('editFirstName');
+    const editLastName = document.getElementById('editLastName');
+    const editPassword = document.getElementById('editPassword');
+
+    // M-Pesa Deposit Elements
+    const depositModal = document.getElementById('depositModal');
+    const openDepositBtn = document.getElementById('openDepositBtn');
+    const closeDepositBtn = document.getElementById('closeDepositBtn');
+    const stkPushBtn = document.getElementById('stkPushBtn');
+    const mpesaPhone = document.getElementById('mpesaPhone');
+    const depositAmount = document.getElementById('depositAmount');
+
+    const canvas = document.getElementById('flightCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    function resizeCanvas() {
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+    }
+
+    let user = { firstName: "", lastName: "", phone: "", password: "" };
+    let balance = 500.00;
+    let currentMultiplier = 1.00;
+    let activeBet = 0;
+    let isBetPlaced = false;      // True if bet is registered for the current/next flight
+    let isRoundActive = false;    // True while the plane is flying
+    let hasCashedOut = false;
+    let activePlayers = [];
+
+    // Login Handler
+    loginBtn.addEventListener('click', () => {
+      const fn = firstNameInput.value.trim();
+      const ln = lastNameInput.value.trim();
+      const phone = phoneInput.value.trim();
+      const pass = passwordInput.value.trim();
+
+      if (!fn || !ln) return alert("Please enter First and Last Name!");
+      if (!phone || phone.length < 10) return alert("Enter a valid mobile phone number!");
+      if (!pass) return alert("Enter password!");
+
+      user = { firstName: fn, lastName: ln, phone, password: pass };
+
+      mpesaPhone.value = phone;
+      userDisplayName.textContent = `${fn} ${ln}`;
+      userDisplayPhone.textContent = phone;
+      balanceDisplay.textContent = `KES ${balance.toFixed(2)}`;
+      
+      authCard.classList.add('hidden');
+      gameWrapper.classList.remove('hidden');
+      resizeCanvas();
+    });
+
+    // Modals
+    openProfileBtn.addEventListener('click', () => {
+      editFirstName.value = user.firstName;
+      editLastName.value = user.lastName;
+      editPassword.value = user.password;
+      profileModal.classList.remove('hidden');
+    });
+    closeProfileBtn.addEventListener('click', () => profileModal.classList.add('hidden'));
+    saveProfileBtn.addEventListener('click', () => {
+      user.firstName = editFirstName.value.trim() || user.firstName;
+      user.lastName = editLastName.value.trim() || user.lastName;
+      if (editPassword.value.trim()) user.password = editPassword.value.trim();
+      userDisplayName.textContent = `${user.firstName} ${user.lastName}`;
+      alert("Settings saved!");
+      profileModal.classList.add('hidden');
+    });
+
+    openDepositBtn.addEventListener('click', () => depositModal.classList.remove('hidden'));
+    closeDepositBtn.addEventListener('click', () => depositModal.classList.add('hidden'));
+
+    stkPushBtn.addEventListener('click', async () => {
+      const p = mpesaPhone.value.trim();
+      const amt = parseFloat(depositAmount.value);
+      if (!p || amt <= 0) return alert("Invalid phone or amount!");
+
+      stkPushBtn.disabled = true;
+      stkPushBtn.textContent = "SENDING STK PUSH...";
+
+      try {
+        const response = await fetch('/api/mpesa/stkpush', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: p, amount: amt })
+        });
+        const data = await response.json();
+        if (data.success) {
+          balance += amt;
+          balanceDisplay.textContent = `KES ${balance.toFixed(2)}`;
+          alert(`STK Push trigger simulated successfully for ${p}!\nKES ${amt.toFixed(2)} added.`);
+          depositModal.classList.add('hidden');
+        }
+      } catch (err) {
+        alert("Server connection failed. Make sure 'node server.js' is running!");
+      } finally {
+        stkPushBtn.disabled = false;
+        stkPushBtn.textContent = "SEND STK PUSH";
+      }
+    });
+
+    function renderPlayersList() {
+      playersList.innerHTML = activePlayers.map(p => {
+        let statusText = `KES ${p.bet}`;
+        let rowClass = '';
+        if (p.cashedOut) {
+          statusText = `${p.winMultiplier}x (+KES ${p.winAmount})`;
+          rowClass = 'won';
+        } else if (p.lost) {
+          statusText = 'CRASHED';
+          rowClass = 'lost';
+        }
+        return `
+          <div class="player-row ${rowClass}">
+            <span>${p.name}</span>
+            <strong>${statusText}</strong>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function drawGraph(mult, isCrash) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (!isRoundActive && mult === 1.00) return;
+
+      const w = canvas.width;
+      const h = canvas.height;
+      const t = Math.min((mult - 1) / 5, 1); 
+      const startX = 30;
+      const startY = h - 30;
+      const endX = startX + (w - 80) * t;
+      const endY = startY - (h - 80) * Math.pow(t, 0.7);
+
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.quadraticCurveTo(startX + (endX - startX) * 0.5, startY, endX, endY);
+      ctx.lineTo(endX, startY);
+      ctx.closePath();
+      
+      const fillGrad = ctx.createLinearGradient(0, 0, 0, h);
+      fillGrad.addColorStop(0, isCrash ? 'rgba(255, 51, 85, 0.35)' : 'rgba(229, 28, 68, 0.35)');
+      fillGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = fillGrad;
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.quadraticCurveTo(startX + (endX - startX) * 0.5, startY, endX, endY);
+      ctx.strokeStyle = isCrash ? '#ff3355' : '#e51c44';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+    }
+
+    // SOCKET EVENTS
+    socket.on('game_start', (data) => {
+      isRoundActive = true;
+      hasCashedOut = false;
+      cashoutPopup.classList.add('hidden');
+      messageEl.textContent = "";
+
+      activePlayers = data.players || [];
+
+      if (isBetPlaced) {
+        activePlayers.unshift({
+          name: `${user.firstName} (You)`,
+          bet: activeBet,
+          cashedOut: false,
+          winMultiplier: null,
+          winAmount: null
+        });
+
+        // 🟡 BRING OUT THE YELLOW CASH OUT BUTTON IMMEDIATELY ON TAKEOFF!
+        actionBtn.textContent = `CASH OUT (KES ${activeBet.toFixed(2)})`;
+        actionBtn.className = "btn btn-cashout";
+        actionBtn.disabled = false;
+      } else {
+        actionBtn.textContent = "WAITING FOR NEXT ROUND";
+        actionBtn.className = "btn btn-bet";
+        actionBtn.disabled = true;
+      }
+
+      renderPlayersList();
+      statusEl.textContent = "PLANE IN FLIGHT";
+      multiplierEl.classList.remove('crashed-text');
+      multiplierEl.textContent = "1.00x";
+    });
+
+    socket.on('multiplier_update', (data) => {
+      currentMultiplier = parseFloat(data.currentMultiplier);
+      multiplierEl.textContent = `${data.currentMultiplier}x`;
+      drawGraph(currentMultiplier, false);
+
+      // Dynamically update the cash out value on the yellow button while flying!
+      if (isRoundActive && isBetPlaced && !hasCashedOut) {
+        const potentialWin = (activeBet * currentMultiplier).toFixed(2);
+        actionBtn.textContent = `CASH OUT (KES ${potentialWin})`;
+        actionBtn.className = "btn btn-cashout";
+        actionBtn.disabled = false;
+      }
+    });
+
+    socket.on('game_crash', (data) => {
+      isRoundActive = false;
+      statusEl.textContent = "FLEW AWAY!";
+      multiplierEl.classList.add('crashed-text');
+      multiplierEl.textContent = `@ ${data.finalMultiplier}x`;
+
+      drawGraph(parseFloat(data.finalMultiplier), true);
+
+      if (isBetPlaced && !hasCashedOut) {
+        messageEl.textContent = `CRASHED! You lost KES ${activeBet.toFixed(2)}`;
+        messageEl.className = "message loss";
+
+        const myRow = activePlayers.find(p => p.name.includes('(You)'));
+        if (myRow) myRow.lost = true;
+      }
+
+      renderPlayersList();
+
+      // Reset turn states
+      isBetPlaced = false;
+      hasCashedOut = false;
+      activeBet = 0;
+
+      actionBtn.textContent = "PLACE BET";
+      actionBtn.className = "btn btn-bet";
+      actionBtn.disabled = false;
+    });
+
+    // ACTION BUTTON CLICK HANDLER
+    actionBtn.addEventListener('click', () => {
+      // 1. CASH OUT LOGIC (Yellow Button Click)
+      if (isRoundActive && isBetPlaced && !hasCashedOut) {
+        hasCashedOut = true;
+        const winAmount = parseFloat((activeBet * currentMultiplier).toFixed(2));
+        balance += winAmount;
+        balanceDisplay.textContent = `KES ${balance.toFixed(2)}`;
+
+        // SHOW THE YELLOW POP-UP BANNER AT THE TOP!
+        cashoutPopup.textContent = `🏆 CASHED OUT AT ${currentMultiplier.toFixed(2)}x! WON KES ${winAmount.toFixed(2)}`;
+        cashoutPopup.classList.remove('hidden');
+
+        const myRow = activePlayers.find(p => p.name.includes('(You)'));
+        if (myRow) {
+          myRow.cashedOut = true;
+          myRow.winMultiplier = currentMultiplier.toFixed(2);
+          myRow.winAmount = winAmount.toFixed(2);
+          renderPlayersList();
+        }
+
+        actionBtn.textContent = "CASHED OUT";
+        actionBtn.className = "btn btn-bet";
+        actionBtn.disabled = true;
+      } 
+     // 2. PLACE BET LOGIC (Red Button Click)
+      else if (!isBetPlaced && !isRoundActive) {
+        const amount = parseFloat(betAmountInput.value);
+
+        if (isNaN(amount) || amount <= 0 || amount > balance) {
+          alert("Invalid bet amount or insufficient balance!");
+          return;
+        }
+
+        balance -= amount;
+        activeBet = amount;
+        isBetPlaced = true;
+        balanceDisplay.textContent = `KES ${balance.toFixed(2)}`;
+        
+        actionBtn.textContent = "BET PLACED (WAITING FOR TAKEOFF...)";
+        actionBtn.disabled = true;
+        messageEl.textContent = "Bet placed! Get ready to cash out!";
+        messageEl.className = "message win";
+      }
+    });
+  </script>
+</body>
+</html>
