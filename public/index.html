@@ -218,7 +218,7 @@
     </div>
   </div>
 
-  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script>
     const socket = io();
 
@@ -501,24 +501,33 @@
         actionBtn.className = "btn btn-bet";
         actionBtn.disabled = true;
       } 
-     // 2. PLACE BET LOGIC (Red Button Click)
-      else if (!isBetPlaced && !isRoundActive) {
-        const amount = parseFloat(betAmountInput.value);
+   // 2. PLACE BET LOGIC (Red Button Click)
+      else if (!isRoundActive && !isBetPlaced) {
+        const amt = parseFloat(betAmountInput.value);
+        if (isNaN(amt) || amt <= 0) return alert("Enter a valid bet amount!");
+        if (amt > balance) return alert("Insufficient balance!");
 
-        if (isNaN(amount) || amount <= 0 || amount > balance) {
-          alert("Invalid bet amount or insufficient balance!");
-          return;
-        }
-
-        balance -= amount;
-        activeBet = amount;
-        isBetPlaced = true;
+        balance -= amt;
         balanceDisplay.textContent = `KES ${balance.toFixed(2)}`;
-        
-        actionBtn.textContent = "BET PLACED (WAITING FOR TAKEOFF...)";
-        actionBtn.disabled = true;
-        messageEl.textContent = "Bet placed! Get ready to cash out!";
+        activeBet = amt;
+        isBetPlaced = true;
+
+        actionBtn.textContent = "CANCEL BET";
+        actionBtn.className = "btn btn-bet";
+        messageEl.textContent = "Bet placed for next round!";
         messageEl.className = "message win";
+      }
+      // 3. CANCEL BET LOGIC (Before round starts)
+      else if (!isRoundActive && isBetPlaced) {
+        balance += activeBet;
+        balanceDisplay.textContent = `KES ${balance.toFixed(2)}`;
+        isBetPlaced = false;
+        activeBet = 0;
+
+        actionBtn.textContent = "PLACE BET";
+        actionBtn.className = "btn btn-bet";
+        messageEl.textContent = "Bet cancelled.";
+        messageEl.className = "message";
       }
     });
   </script>
